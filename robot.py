@@ -1,7 +1,16 @@
-import json,random,re,pprint,os
+import json,random,re,os,time,hashlib
 import itchat,requests
 from itchat.content import *
 from urllib import parse
+
+
+def create_md5(string):#生成md5值
+    text= hashlib.md5()
+    text.update(string.encode(encoding='utf-8'))
+    hl = text.hexdigest()
+    return hl
+
+
 
 def process(info,userid):
     name = itchat.search_friends(userName=userid)['RemarkName'] if itchat.search_friends(userName=userid)['RemarkName'] != '' else itchat.search_friends(userName=userid)['NickName']
@@ -14,11 +23,47 @@ def process(info,userid):
     elif info == '我的头像':
         print('收到{}的头像请求'.format(name))
         getHeadImg(userid)
+    else:
+        print('收到{}的翻译请求'.format(name))
+        translate(info,userid)
 
 
 
  #功能模块
 ##########################################################
+def translate(words,userid):#翻译单词
+    ts = '' + str(int(time.time()*1000))
+    salt = ts + str(random.randint(0,9))
+    sign = create_md5('fanyideskweb' + words + salt + 'n%A-rKaT5fb[Gy?;N5@Tj')
+    bv = create_md5('5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36')
+
+    url = 'http://fanyi.youdao.com/translate_o?smartresult=dict&smartresult=rule'
+    headers = {
+        'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36',
+        'Referer':'http://fanyi.youdao.com/',
+        'Cookie':'OUTFOX_SEARCH_USER_ID=-1230324205@106.34.48.35; OUTFOX_SEARCH_USER_ID_NCOO=2014994095.072274; JSESSIONID=aaaHQbw0exCA0erFGop0w; ___rl__test__cookies=1567933779347',
+        'Host':'fanyi.youdao.com'
+    }
+    data = {
+        'i':words,
+        'from':'AUTO',
+        'to':'AUTO',
+        'smartresult':'dict',
+        'client':'fanyideskweb',
+        'salt':salt,
+        'sign':sign,
+        'ts':ts,
+        'bv':bv,
+        'doctype':'json',
+        'version':'2.1',
+        'keyfrom':'fanyi.web',
+        'action':'FY_BY_REALTlME'
+    }
+    result = requests.post(url,data=data,headers=headers).json()
+    result = result['translateResult'][0][0]['tgt']
+    itchat.send(result,toUserName=userid)
+
+
 def xiaohua(userid):#处理笑话请求
     try:
         url = 'https://www.apiopen.top/satinApi?type=2&page=1'
@@ -77,14 +122,6 @@ def getInfo(msg):
     process(info,userid)
 
 
-
-
-
-
-
-def main():
-    itchat.auto_login(hotReload=True)
-
 if __name__ == '__main__':
-    main()
+    itchat.auto_login(hotReload=True)
     itchat.run()
